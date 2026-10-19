@@ -1,0 +1,33 @@
+---
+description: Keep PRs small, tested, and documented before proposing them
+alwaysApply: true
+---
+
+# PR size, tests, and docs
+
+## PR limits
+
+- Each PR must be at most **150 lines** of code change and at most **3 functions**.
+- If the work is larger, ship **core functions first**. Put remaining work in a project TODO list (do not dump extras into the same PR).
+
+```text
+❌ BAD: one PR with 6 helpers, tests, docs, and leftover features
+✅ GOOD: PR 1 = 2–3 core functions + tests + README; remaining items listed as TODOs
+```
+
+## Tests (required before any PR)
+
+- Add unit tests for the change.
+- Before proposing a PR, post how to run tests **on macOS** with **customized inputs** and the **expected output**. Do not propose a PR until this is written in the conversation.
+
+```text
+Example:
+python -m pytest tests/test_foo.py -k test_bar
+# custom input: ...
+# expected output: ...
+```
+
+## Docs and dependencies
+
+- Update `README.md` whenever you add, delete, or modify features.
+- If you change dependencies, edit `dependencies.txt` (create it if it does not exist yet).
