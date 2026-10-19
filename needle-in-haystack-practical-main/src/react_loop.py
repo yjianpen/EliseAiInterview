@@ -14,6 +14,9 @@ Then resolve one hop at a time with the tools. Use find_mentions when the link b
 entities may only be stated in the *other* article, and to check whether sources disagree.
 Rely only on text you read through tools. If sources conflict, trust the one that states the exact
 relationship the question describes. For "current"/"latest" values, use the most recent figure.
+Before answering "I don't know", or when a hop dead-ends (no article for an entity), call find_mentions
+with the exact name of each entity in the question (e.g. "Lunar Cartography Expedition"): other
+articles often state the relationship you need, and they override the entity's own infobox.
 Final reply: only the short answer (a name, number or phrase). If it is not stated, reply: I don't know"""
 TOOLS = [{"type": "function", "function": {"name": name, "description": desc, "parameters": {
     "type": "object", "properties": {arg: {"type": "string"}}, "required": [arg]}}}
