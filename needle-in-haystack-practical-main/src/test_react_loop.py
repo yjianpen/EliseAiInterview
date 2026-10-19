@@ -46,11 +46,25 @@ class ReactLoopTest(unittest.TestCase):
         self.assertIn("Aethermist Valley", tool_msgs[0]["content"])  # backlink found the valley
         self.assertIn("fewer than 3,000", tool_msgs[1]["content"])
 
-    def test_refusals_are_normalized(self):
-        for reply in ["I don't know.", "Unknown", "  not stated in the articles", "", None]:
+    def test_refusals_keep_agent_wording(self):
+        graceful = "I don't know - no article states the balloon's name."
+        for reply, expected in [(graceful, graceful), ("", "I don't know"), (None, "I don't know"),
+                                ('"Skyfather\'s Breath."', "Skyfather's Breath."),  # one wrapping pair only
+                                ('call it "Skyfather\'s Breath."', 'call it "Skyfather\'s Breath."')]:
             client = FakeClient([(reply, None)])
-            self.assertEqual(react_loop.react_loop("Q?", self.path, client=client), "I don't know")
-        self.assertEqual(react_loop.normalize_answer(' "Skyfather\'s Breath" '), "Skyfather's Breath")
+            self.assertEqual(react_loop.react_loop("Q?", self.path, client=client), expected)
+
+    def test_tool_failures_are_passed_to_the_agent(self):
+        client = FakeClient([(None, [NS(id="c1", function=NS(name="search", arguments="{not json"))]),
+                             (None, [tool_call(2, "read_article", {"title": "Atlantis"})]),
+                             (None, [tool_call(3, "find_mentions", {"phrase": "Atlantis"})]),
+                             ("I don't know - nothing mentions Atlantis.", None)])
+        answer, refs = react_loop.react_loop("Q?", self.path, client=client, with_refs=True)
+        self.assertEqual((answer, refs), ("I don't know - nothing mentions Atlantis.", []))
+        errors = [m["content"] for m in client.requests[-1]["messages"] if m["role"] == "tool"]
+        self.assertTrue(errors[0].startswith("Tool error in search: JSONDecodeError"))
+        self.assertIn("Try search, or find_mentions", errors[1])
+        self.assertIn("No article mentions 'atlantis'", errors[2])
 
     def test_last_step_forbids_tools(self):
         loop = [(None, [tool_call(i, "search", {"query": "frog"})]) for i in range(3)]
