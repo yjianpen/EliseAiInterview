@@ -91,6 +91,22 @@ cd src && python candidate_solution.py
 
 When you are done, an interviewer will run the full evaluation against a separate encrypted question set.
 
+## Current solution
+
+`answer()` in `src/candidate_solution.py`:
+1. **ReAct agent** (`react_loop`) — parses the question into hops and calls `search` / `read_article` /
+   `find_mentions` until it can answer, or says `I don't know`.
+2. **Fallback on errors only** (`fallback_answer`) — BM25 top 8 + 2 wiki-link hops (`retrieve`), then one LLM
+   call over those articles. A refusal from step 1 is final, so the fallback cannot invent an answer for it.
+3. If both fail, return `I don't know`; `answer()` never raises.
+
+Setup: `pip install -r requirements.txt`, then put `OPENAI_API_KEY="..."` in `src/.env` (gitignored).
+
+```bash
+python3 -m unittest tests.test_candidate_solution -v   # project root, no key needed -> OK
+cd src && python3 candidate_solution.py                # needs the key -> both examples graded correct
+```
+
 ## Solution progress
 
 ### Indexer (`src/index.py`)
@@ -124,7 +140,7 @@ The tools the agent will call, all taking the index from `get_index()`:
 
 ### TODO
 
-- Wire `react_loop` into `answer()` in `candidate_solution.py`; run the evaluator end to end
+
 - Make final answers terser (live runs reply with full sentences)
 - Speed up `find_mentions` (precomputed lowercase text or a phrase index); pickle the BM25 index
 - Custom eval set (multi-hop, conflicting sources, "current" values, unanswerable)
