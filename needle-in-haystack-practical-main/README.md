@@ -99,6 +99,9 @@ When you are done, an interviewer will run the full evaluation against a separat
 2. **Fallback on errors only** (`fallback_answer`) — BM25 top 8 + 2 wiki-link hops (`retrieve`), then one LLM
    call over those articles. A refusal from step 1 is final, so the fallback cannot invent an answer for it.
 3. If both fail, return `I don't know`; `answer()` never raises.
+4. `answer()` prints the agent's references as one block per question, e.g.
+   `[7183942:4685499] Aethermist Valley | The indigenous Norathi people ...` (page id : XML line). The returned
+   string stays answer-only so grading is unaffected; the error fallback path has no references.
 
 Setup: `pip install -r requirements.txt`, then put `OPENAI_API_KEY="..."` in `src/.env` (gitignored).
 

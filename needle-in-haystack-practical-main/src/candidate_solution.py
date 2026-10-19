@@ -39,13 +39,25 @@ def fallback_answer(question: str, file_path: str, client=None) -> str:
     return react_loop.normalize_answer(reply.choices[0].message.content)
 
 
+def format_references(question: str, refs: list) -> str:
+    """One printable block per question: each cited row as [page_id:xml_line] title | text."""
+    rows = [f"  [{r['page_id']}:{r['xml_line']}] {r['title']} | {r['text'][:160]}" for r in refs]
+    return "\n".join([f"References for: {question}"] + (rows or ["  (none)"]))
+
+
 def answer(question: str, file_path: str) -> str:
-    """ReAct agent; on any error fall back to retrieve + one LLM call; never raise."""
-    for attempt in (react_loop.react_loop, fallback_answer):
-        try:
-            return attempt(question, file_path)
-        except Exception as exc:  # API/network/tool errors must not crash the evaluator
-            print(f"{attempt.__name__} failed: {exc!r}", file=sys.stderr)
+    """ReAct agent (prints its references); on any error fall back to retrieve + one LLM call; never raise.
+    The returned string is only the answer, so grading is unaffected by the references."""
+    try:
+        result, refs = react_loop.react_loop(question, file_path, with_refs=True)
+        print(format_references(question, refs), flush=True)  # one print per question: no interleaving
+        return result
+    except Exception as exc:  # API/network/tool errors must not crash the evaluator
+        print(f"react_loop failed: {exc!r}", file=sys.stderr)
+    try:
+        return fallback_answer(question, file_path)
+    except Exception as exc:
+        print(f"fallback_answer failed: {exc!r}", file=sys.stderr)
     return react_loop.DONT_KNOW
 
 
