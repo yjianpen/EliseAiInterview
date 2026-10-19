@@ -112,9 +112,13 @@ cd src && python3 candidate_solution.py                # needs the key -> both e
 ### Indexer (`src/index.py`)
 
 - `get_index(file_path)` parses the XML dump once per process (thread-safe) and caches it as
-  `<dump>.idx.pkl` next to the dump: ~20s to build cold, ~1s to reload from the pickle.
+  `<dump>.v2.idx.pkl` next to the dump: ~20s to build cold, ~1s to reload from the pickle.
 - The index holds cleaned article text (refs/markup stripped, links flattened, infobox fields kept),
   the outgoing links of each article, and a case-insensitive alias map that resolves redirects.
+- `index["docs"][title] = (page_id, xml_line)`: row *i* of an article's cleaned text comes from line
+  `xml_line + i` of the XML file (cleaning keeps line positions). Verified on 45,906 rows of the real dump.
+  Page ids are not unique in this dump (3847291 is used twice), so references use page id + XML line.
+- Cache file is `<dump>.v2.idx.pkl`; the old `<dump>.idx.pkl` from before line tracking can be deleted.
 - Tests: `cd src && python3 -m unittest test_index -v`
 
 ### Retrieval tools (`src/search.py`)
