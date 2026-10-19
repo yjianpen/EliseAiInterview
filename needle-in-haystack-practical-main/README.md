@@ -146,7 +146,11 @@ The tools the agent will call, all taking the index from `get_index()`:
 - References: every observation row is tagged `[page_id:xml_line]` (from `index["docs"]`); the model ends with
   `SOURCES: [..]`. Only tags the tools actually showed are kept (else: shown rows containing the answer), so
   references are deterministic. `react_loop(q, f, with_refs=True)` returns `(answer, refs)`; `answer()` is unchanged.
-- `normalize_answer()` maps any refusal ("Unknown", "not stated", ...) to exactly `I don't know`.
+- Retrieval failures go back to the agent as observations instead of ending the loop: tool exceptions and
+  malformed arguments (`Tool error in search: ...`), and empty results that say what to try next.
+- Refusals are the agent's own words: the prompt asks it to start with "I don't know" plus at most one sentence
+  on what is missing, never a related fact. `normalize_answer()` only trims (and strips one pair of wrapping
+  quotes); an empty reply becomes `I don't know`. Refusals carry no references.
 - Model: `gpt-4.1-mini`, override with `OPENAI_MODEL`. Key: `OPENAI_API_KEY` in the environment or `src/.env`.
 - Tests use a scripted fake client (no key or network): `cd src && python3 -m unittest test_react_loop -v`
 
@@ -166,6 +170,8 @@ Results (`gpt-4.1-mini` agent, 2 runs): **85.7% and 90.5%**. backlink, conflicti
 Misses: "Who founded the Festival of Floating Lanterns?" both runs (the agent backlink-searches first, reads the
 *library's* article and answers its founder); one multi-hop question per run (a different one each time);
 once, a description of the expedition's balloon given as its unstated name.
+After graceful refusals + tool failures fed back to the agent: full eval **21/21 (100%)** in 1 run; unanswerable
+5/5 and 4/5 in 2 extra runs (the balloon question still sometimes gets a description instead of a refusal).
 
 ### TODO
 
