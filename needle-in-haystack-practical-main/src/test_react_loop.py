@@ -59,6 +59,12 @@ class ReactLoopTest(unittest.TestCase):
         self.assertEqual([r["tool_choice"] for r in client.requests], ["auto", "auto", "none"])
         self.assertEqual(react_loop.run_tool({}, "bogus", {}), "Unknown tool 'bogus'.")
 
+    def test_prompt_requires_backlink_search_before_giving_up(self):
+        # Hard example: the expedition's infobox names "Starrise"; only the valley article says
+        # the expedition launched there, so a dead end must trigger find_mentions on the entity.
+        self.assertIn("call find_mentions\nwith the exact name of each entity", react_loop.SYSTEM)
+        self.assertIn("override the entity's own infobox", react_loop.SYSTEM)
+
 
 if __name__ == "__main__":
     unittest.main()

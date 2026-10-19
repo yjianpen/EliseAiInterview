@@ -112,9 +112,13 @@ cd src && python3 candidate_solution.py                # needs the key -> both e
 ### Indexer (`src/index.py`)
 
 - `get_index(file_path)` parses the XML dump once per process (thread-safe) and caches it as
-  `<dump>.idx.pkl` next to the dump: ~20s to build cold, ~1s to reload from the pickle.
+  `<dump>.v2.idx.pkl` next to the dump: ~20s to build cold, ~1s to reload from the pickle.
 - The index holds cleaned article text (refs/markup stripped, links flattened, infobox fields kept),
   the outgoing links of each article, and a case-insensitive alias map that resolves redirects.
+- `index["docs"][title] = (page_id, xml_line)`: row *i* of an article's cleaned text comes from line
+  `xml_line + i` of the XML file (cleaning keeps line positions). Verified on 45,906 rows of the real dump.
+  Page ids are not unique in this dump (3847291 is used twice), so references use page id + XML line.
+- Cache file is `<dump>.v2.idx.pkl`; the old `<dump>.idx.pkl` from before line tracking can be deleted.
 - Tests: `cd src && python3 -m unittest test_index -v`
 
 ### Retrieval tools (`src/search.py`)
@@ -134,14 +138,33 @@ The tools the agent will call, all taking the index from `get_index()`:
 - `react_loop(question, file_path, client=None)` — the model first parses the question into entities
   and a chain of hops, then alternates thought → tool call (`search` / `read_article` / `find_mentions`)
   → observation, up to 8 steps. The last step disables tools to force an answer.
+- Prompt rule: on a dead end or before `I don't know`, backlink-search every entity named in the question
+  (fixes the hard example, where the expedition's infobox points to the wrong launch site).
 - `normalize_answer()` maps any refusal ("Unknown", "not stated", ...) to exactly `I don't know`.
 - Model: `gpt-4.1-mini`, override with `OPENAI_MODEL`. Key: `OPENAI_API_KEY` in the environment or `src/.env`.
 - Tests use a scripted fake client (no key or network): `cd src && python3 -m unittest test_react_loop -v`
 
+### Custom eval (`src/custom_eval.json`, `src/run_eval.py`)
+
+21 questions written from the 28 fictional articles, every answer checked against the article text:
+lookup (2), current_value (3), backlink (3: the fact lives only in *another* article), multi_hop (5),
+conflicting (3: prose vs infobox years), unanswerable (5: expected `I don't know`).
+
+```bash
+cd src && python3 run_eval.py                          # all 21; needs the key, ~70s
+cd src && python3 run_eval.py --category multi_hop     # one category
+cd src && python3 -m unittest test_run_eval -v         # offline tests of the runner
+```
+
+Results (`gpt-4.1-mini` agent, 2 runs): **85.7% and 90.5%**. backlink, conflicting and current_value 3/3 in both.
+Misses: "Who founded the Festival of Floating Lanterns?" both runs (the agent backlink-searches first, reads the
+*library's* article and answers its founder); one multi-hop question per run (a different one each time);
+once, a description of the expedition's balloon given as its unstated name.
+
 ### TODO
 
-
+- Prompt: read the entity's own article before `find_mentions` (fixes the festival-founder miss)
+- Multi-hop flakiness: try `OPENAI_MODEL=gpt-4.1`, or run twice and re-ask on disagreement
 - Make final answers terser (live runs reply with full sentences)
 - Speed up `find_mentions` (precomputed lowercase text or a phrase index); pickle the BM25 index
-- Custom eval set (multi-hop, conflicting sources, "current" values, unanswerable)
 - Optional: all-fictional-articles-in-context mode, section-level chunking, tool-call trace logging
