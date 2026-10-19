@@ -59,6 +59,20 @@ class ReactLoopTest(unittest.TestCase):
         self.assertEqual([r["tool_choice"] for r in client.requests], ["auto", "auto", "none"])
         self.assertEqual(react_loop.run_tool({}, "bogus", {}), "Unknown tool 'bogus'.")
 
+    def test_references_are_validated_against_shown_rows(self):
+        read = (None, [tool_call(1, "read_article", {"title": "Luminous Tree Frog"})])
+        _, start = react_loop.index.get_index(self.path)["docs"]["Luminous Tree Frog"]
+        frog_tag = f"[-1:{start + 1}]"  # fixture pages have no <id>; the fact is on the text's 2nd line
+        for final, expected_lines in [(f"fewer than 3,000\nSOURCES: {frog_tag} [42:7]", [start + 1]),
+                                      ("3,000", [start + 1]),  # no citation: rows containing the answer
+                                      ("I don't know\nSOURCES: " + frog_tag, [])]:
+            client = FakeClient([read, (final, None)])
+            answer, refs = react_loop.react_loop("Q?", self.path, client=client, with_refs=True)
+            self.assertNotIn("SOURCES", answer)
+            self.assertEqual([r["xml_line"] for r in refs], expected_lines, final)
+        self.assertIn(frog_tag + " Current population", client.requests[-1]["messages"][-1]["content"])
+        self.assertEqual(refs, [])
+
     def test_prompt_requires_backlink_search_before_giving_up(self):
         # Hard example: the expedition's infobox names "Starrise"; only the valley article says
         # the expedition launched there, so a dead end must trigger find_mentions on the entity.
