@@ -1,26 +1,52 @@
 #!/usr/bin/env python3
-"""
-Practical Interview - Candidate Solution Template
+"""Answer questions over the enwiki dump: ReAct agent first, BM25 + link-hop retrieval as fallback."""
+import os
+import sys
 
-Your task is to implement the 'answer' function below.
-This function should search through the provided Wikipedia articles file
-to find answers to various questions.
-"""
+import index
+import react_loop
+import search
+
+FALLBACK_PROMPT = ("Answer using ONLY the wiki articles. If unsupported, reply exactly: I don't know. "
+                   "Return a short fact (name, number, or phrase). Prefer article prose over infoboxes "
+                   "when they conflict.")
+
+
+def retrieve(question: str, idx: dict, hops: int = 2, k: int = 8) -> list:
+    """BM25 top-k, then follow wiki links `hops` times, preferring links that share question words."""
+    words = set(search._TOK.findall(question.lower())) - search._STOP
+    picked = [title for title, _ in search.search(idx, question, k=k)]
+    for _ in range(hops):
+        frontier = {link for title in picked for link in idx["links"].get(title, [])
+                    if link in idx["pages"] and link not in picked}
+        overlap = lambda link: len(words & set(search._TOK.findall(link.lower())))
+        picked += sorted(frontier, key=lambda link: (-overlap(link), link))[:k]
+    return [(title, idx["pages"][title]) for title in picked]
+
+
+def fallback_answer(question: str, file_path: str, client=None) -> str:
+    """Single LLM call over retrieved articles (the first, non-agentic solution)."""
+    if client is None:
+        import openai
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+        client = openai.OpenAI()
+    docs = retrieve(question, index.get_index(file_path))[:12]
+    context = "\n\n".join(f"Title: {title}\n{text[:12000]}" for title, text in docs)
+    reply = client.chat.completions.create(model=react_loop.MODEL, temperature=0, messages=[
+        {"role": "system", "content": FALLBACK_PROMPT},
+        {"role": "user", "content": f"Articles:\n{context}\n\nQuestion: {question}"}])
+    return react_loop.normalize_answer(reply.choices[0].message.content)
+
 
 def answer(question: str, file_path: str) -> str:
-    """
-    Answer questions based on information in the Wikipedia articles file.
-
-    Args:
-        question: The question to answer
-        file_path: Path to the file containing Wikipedia articles
-
-    Returns:
-        The answer to the question, or "I don't know" if unanswerable
-    """
-    # TODO: Implement your solution here
-
-    return "I don't know"
+    """ReAct agent; on any error fall back to retrieve + one LLM call; never raise."""
+    for attempt in (react_loop.react_loop, fallback_answer):
+        try:
+            return attempt(question, file_path)
+        except Exception as exc:  # API/network/tool errors must not crash the evaluator
+            print(f"{attempt.__name__} failed: {exc!r}", file=sys.stderr)
+    return react_loop.DONT_KNOW
 
 
 # Example questions to help you develop and test your solution.
