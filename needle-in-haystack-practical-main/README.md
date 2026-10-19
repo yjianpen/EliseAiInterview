@@ -90,3 +90,20 @@ cd src && python candidate_solution.py
 ```
 
 When you are done, an interviewer will run the full evaluation against a separate encrypted question set.
+
+## Solution progress
+
+### Indexer (`src/index.py`)
+
+- `get_index(file_path)` parses the XML dump once per process (thread-safe) and caches it as
+  `<dump>.idx.pkl` next to the dump: ~20s to build cold, ~1s to reload from the pickle.
+- The index holds cleaned article text (refs/markup stripped, links flattened, infobox fields kept),
+  the outgoing links of each article, and a case-insensitive alias map that resolves redirects.
+- Tests: `cd src && python3 -m unittest test_index -v`
+
+### TODO
+
+- Retrieval tools: BM25 `search`, fuzzy `read_article`, backlink `find_mentions`
+- OpenAI tool-calling agent loop behind `answer()`, with refusal handling
+- Custom eval set (multi-hop, conflicting sources, "current" values, unanswerable)
+- Optional: all-fictional-articles-in-context mode, section-level chunking, tool-call trace logging
