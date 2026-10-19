@@ -173,6 +173,22 @@ once, a description of the expedition's balloon given as its unstated name.
 After graceful refusals + tool failures fed back to the agent: full eval **21/21 (100%)** in 1 run; unanswerable
 5/5 and 4/5 in 2 extra runs (the balloon question still sometimes gets a description instead of a refusal).
 
+### Edge-case evals (`src/answers_not_exist_eval.py`, `src/synonyms.py`)
+
+Each file defines `QA` (same item format as `custom_eval.json`) and runs itself through `run_eval.py`, which now
+also accepts `--qa <file>.py`:
+
+- `answers_not_exist_eval.py` — 26 questions whose answer is not in the dump (expected `I don't know`):
+  invented entities (9, names absent from all 20,399 articles), missing attributes of real fictional entities
+  (15), a false premise and a future value. Result: **26/26**.
+- `synonyms.py` — 25 questions naming entities by alias (`also_known_as`), abbreviation (CTTA, IIA, ...),
+  scientific name (*Hyla bioluminescens*) or paraphrase (founded → started, population → how many people live).
+  Result: **25/25**.
+
+```bash
+cd src && python3 answers_not_exist_eval.py          # or: python3 synonyms.py --category abbreviation
+```
+
 ### TODO
 
 - Prompt: read the entity's own article before `find_mentions` (fixes the festival-founder miss)

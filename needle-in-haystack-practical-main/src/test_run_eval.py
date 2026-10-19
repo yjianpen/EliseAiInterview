@@ -38,6 +38,19 @@ class RunEvalTest(unittest.TestCase):
                                 evaluator_cls=FakeEvaluator)
         self.assertEqual(summary["by_category"], {"backlink": (0, 3)})
 
+    def test_edge_case_datasets(self):
+        import answers_not_exist_eval
+        import synonyms
+        for module, refuse in [(answers_not_exist_eval, True), (synonyms, False)]:
+            self.assertTrue(20 <= len(module.QA) <= 30, module.__name__)
+            self.assertEqual(len({q["question"] for q in module.QA}), len(module.QA))  # no duplicates
+            for q in module.QA:
+                self.assertIn(q["difficulty"], {"easy", "medium", "hard"})
+                self.assertEqual(q["answer"] == "I don't know", refuse, q)
+        summary = run_eval.main(["--qa", synonyms.__file__, "--category", "abbreviation"],
+                                answer_fn=lambda q, f: "x", evaluator_cls=FakeEvaluator)
+        self.assertEqual(summary["by_category"], {"abbreviation": (0, 5)})
+
 
 if __name__ == "__main__":
     unittest.main()
