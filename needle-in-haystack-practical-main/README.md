@@ -101,9 +101,21 @@ When you are done, an interviewer will run the full evaluation against a separat
   the outgoing links of each article, and a case-insensitive alias map that resolves redirects.
 - Tests: `cd src && python3 -m unittest test_index -v`
 
+### Retrieval tools (`src/search.py`)
+
+The tools the agent will call, all taking the index from `get_index()`:
+
+- `search(index, query, k)` — BM25 over title + first 12K chars of each article (title terms boosted).
+  The term index is built lazily once per process: ~8s, ~1.4GB peak with the index loaded.
+- `read_article(index, title)` — resolves loose titles (case, redirects, partial like
+  "Lunar Cartography Expedition", typos) and returns the full text plus its outgoing links for link hops.
+- `find_mentions(index, phrase)` — backlink search over full text (~3s). Needed when the fact that
+  links two articles lives only in the *other* article (e.g. the valley says the expedition launched there).
+- Tests: `cd src && python3 -m unittest test_search -v`
+
 ### TODO
 
-- Retrieval tools: BM25 `search`, fuzzy `read_article`, backlink `find_mentions`
+- Speed up `find_mentions` (precomputed lowercase text or a phrase index); pickle the BM25 index
 - OpenAI tool-calling agent loop behind `answer()`, with refusal handling
 - Custom eval set (multi-hop, conflicting sources, "current" values, unanswerable)
 - Optional: all-fictional-articles-in-context mode, section-level chunking, tool-call trace logging
