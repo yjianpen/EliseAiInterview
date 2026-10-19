@@ -113,9 +113,19 @@ The tools the agent will call, all taking the index from `get_index()`:
   links two articles lives only in the *other* article (e.g. the valley says the expedition launched there).
 - Tests: `cd src && python3 -m unittest test_search -v`
 
+### ReAct loop (`src/react_loop.py`)
+
+- `react_loop(question, file_path, client=None)` — the model first parses the question into entities
+  and a chain of hops, then alternates thought → tool call (`search` / `read_article` / `find_mentions`)
+  → observation, up to 8 steps. The last step disables tools to force an answer.
+- `normalize_answer()` maps any refusal ("Unknown", "not stated", ...) to exactly `I don't know`.
+- Model: `gpt-4.1-mini`, override with `OPENAI_MODEL`. Key: `OPENAI_API_KEY` in the environment or `src/.env`.
+- Tests use a scripted fake client (no key or network): `cd src && python3 -m unittest test_react_loop -v`
+
 ### TODO
 
+- Wire `react_loop` into `answer()` in `candidate_solution.py`; run the evaluator end to end
+- Make final answers terser (live runs reply with full sentences)
 - Speed up `find_mentions` (precomputed lowercase text or a phrase index); pickle the BM25 index
-- OpenAI tool-calling agent loop behind `answer()`, with refusal handling
 - Custom eval set (multi-hop, conflicting sources, "current" values, unanswerable)
 - Optional: all-fictional-articles-in-context mode, section-level chunking, tool-call trace logging
