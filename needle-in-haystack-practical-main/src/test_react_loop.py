@@ -87,6 +87,16 @@ class ReactLoopTest(unittest.TestCase):
         self.assertIn(frog_tag + " Current population", client.requests[-1]["messages"][-1]["content"])
         self.assertEqual(refs, [])
 
+    def test_links_without_article_are_marked(self):
+        # Hard example: the valley lists 3 endemic species; only the frog has an article (and a population).
+        idx = {"pages": {"Valley": "Wolf, butterfly and frog live here."},
+               "links": {"Valley": ["Aurora Wolf", "Luminous Tree Frog", "Mist Butterflies"]},
+               "aliases": {"valley": "Valley", "luminous tree frog": "Luminous Tree Frog"}, "docs": {"Valley": (1, 10)}}
+        out = react_loop.run_tool(idx, "read_article", {"title": "valley"})
+        self.assertTrue(out.endswith(
+            "Links to: Aurora Wolf (no article), Luminous Tree Frog, Mist Butterflies (no article)"))
+        self.assertIn("check each candidate", react_loop.SYSTEM)
+
     def test_prompt_requires_backlink_search_before_giving_up(self):
         # Hard example: the expedition's infobox names "Starrise"; only the valley article says
         # the expedition launched there, so a dead end must trigger find_mentions on the entity.

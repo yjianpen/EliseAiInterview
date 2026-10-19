@@ -148,6 +148,8 @@ The tools the agent will call, all taking the index from `get_index()`:
   references are deterministic. `react_loop(q, f, with_refs=True)` returns `(answer, refs)`; `answer()` is unchanged.
 - Retrieval failures go back to the agent as observations instead of ending the loop: tool exceptions and
   malformed arguments (`Tool error in search: ...`), and empty results that say what to try next.
+- `read_article` observations append "Linked from" rows (inverted `[[link]]` graph, built once in ~0.4s) and mark
+  links with no article; the prompt says to check every candidate of a hop. Hard example: 6/10 -> 10/10.
 - Refusals are the agent's own words: the prompt asks it to start with "I don't know" plus at most one sentence
   on what is missing, never a related fact. `normalize_answer()` only trims (and strips one pair of wrapping
   quotes); an empty reply becomes `I don't know`. Refusals carry no references.

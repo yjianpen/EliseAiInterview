@@ -2,12 +2,14 @@
 import json
 import os
 import re
+import threading
 
 import index
 import search
 
 DONT_KNOW = "I don't know"
 _TAG = re.compile(r"\[(-?\d+):(\d+)\]")
+_LOCK = threading.Lock()
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
 SYSTEM = """Answer questions using ONLY a Wikipedia dump that also contains fictional articles.
 First parse the question: name the entities it mentions and the chain of hops needed
@@ -19,6 +21,9 @@ relationship the question describes. For "current"/"latest" values, use the most
 Before answering "I don't know", or when a hop dead-ends (no article for an entity), call find_mentions
 with the exact name of each entity in the question (e.g. "Lunar Cartography Expedition"): other
 articles often state the relationship you need, and they override the entity's own infobox.
+When a hop matches several candidates (e.g. a valley with several endemic species), do not commit to the
+first one: check each candidate and continue with the one whose article states the fact asked for. Links
+marked "(no article)" have no article of their own. Answer "I don't know" only after every candidate fails.
 Each observation row starts with a [page_id:xml_line] tag.
 Final reply: only the short answer (a name, number or phrase), then a new line "SOURCES:" followed by the
 tags of the rows that state it. Tool failures come back as observations: retry with another query or tool.
@@ -45,6 +50,19 @@ def tag_rows(idx: dict, title: str, first_row: int, text: str, seen: dict) -> st
     return "\n".join(out)
 
 
+def backlinks(idx: dict, title: str) -> list:
+    """Articles whose [[wiki links]] point at title; the link graph is inverted once per process (~0.4s)."""
+    with _LOCK:
+        if "backlinks" not in idx:
+            inverted = {}
+            for src, targets in idx["links"].items():
+                for target in targets:
+                    if idx["aliases"].get(target.lower()):
+                        inverted.setdefault(idx["aliases"][target.lower()], []).append(src)
+            idx["backlinks"] = inverted
+    return idx["backlinks"].get(title, [])
+
+
 def run_tool(idx: dict, name: str, args: dict, seen: dict = None) -> str:
     """Execute one tool call; every row of the observation carries a deterministic [page_id:xml_line] tag."""
     seen = {} if seen is None else seen
@@ -58,7 +76,16 @@ def run_tool(idx: dict, name: str, args: dict, seen: dict = None) -> str:
         if title not in idx["pages"]:
             return out + " Try search, or find_mentions with a shorter form of the name."
         body, links = out[len(title) + 3:].rsplit("\n\nLinks to: ", 1)
-        return f"# {title}\n{tag_rows(idx, title, 0, body, seen)}\n\nLinks to: {links}"
+        links = ", ".join(l if l.lower() in idx["aliases"] else f"{l} (no article)" for l in links.split(", "))
+        linked_from, key = [], " ".join(title.lower().split()[:3])  # the row in each source that names title
+        for src in backlinks(idx, title)[:5]:
+            rows = idx["pages"][src].split("\n")
+            row = next((i for i, r in enumerate(rows) if key in r.lower()), None)
+            if row is not None:
+                linked_from.append(f"## {src}\n" + tag_rows(idx, src, row, rows[row], seen))
+        backs = "\n\nLinked from (these articles may state facts about it):\n" + "\n".join(linked_from)
+        return (f"# {title}\n{tag_rows(idx, title, 0, body, seen)}\n\nLinks to: {links}"
+                + (backs if linked_from else ""))
     if name == "find_mentions":
         phrase, parts = args.get("phrase", "").strip().lower(), []
         for t, _ in search.find_mentions(idx, phrase):
