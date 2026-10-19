@@ -140,6 +140,9 @@ The tools the agent will call, all taking the index from `get_index()`:
   → observation, up to 8 steps. The last step disables tools to force an answer.
 - Prompt rule: on a dead end or before `I don't know`, backlink-search every entity named in the question
   (fixes the hard example, where the expedition's infobox points to the wrong launch site).
+- References: every observation row is tagged `[page_id:xml_line]` (from `index["docs"]`); the model ends with
+  `SOURCES: [..]`. Only tags the tools actually showed are kept (else: shown rows containing the answer), so
+  references are deterministic. `react_loop(q, f, with_refs=True)` returns `(answer, refs)`; `answer()` is unchanged.
 - `normalize_answer()` maps any refusal ("Unknown", "not stated", ...) to exactly `I don't know`.
 - Model: `gpt-4.1-mini`, override with `OPENAI_MODEL`. Key: `OPENAI_API_KEY` in the environment or `src/.env`.
 - Tests use a scripted fake client (no key or network): `cd src && python3 -m unittest test_react_loop -v`
