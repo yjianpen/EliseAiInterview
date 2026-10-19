@@ -1,0 +1,23 @@
+[
+{"category": "lookup", "difficulty": "easy", "question": "In what year did Dr. Amelia Thornwick receive the Meridian Prize for Scientific Innovation?", "answer": "1934"},
+{"category": "lookup", "difficulty": "easy", "question": "Who founded the Festival of Floating Lanterns?", "answer": "Kenji Lightbringer"},
+{"category": "current_value", "difficulty": "easy", "question": "Who is the current head librarian of the Levitating Library of Loftington?", "answer": "Ms. Celestia Pageturner"},
+{"category": "current_value", "difficulty": "easy", "question": "Who is the current world champion of the Gravity Surfing Championship?", "answer": "Luna Gravitax"},
+{"category": "current_value", "difficulty": "medium", "question": "What is the current population estimate of the Luminous Tree Frog in the wild?", "answer": "fewer than 3,000 individuals"},
+{"category": "backlink", "difficulty": "medium", "question": "Who led the Lunar Cartography Expedition of 1689?", "answer": "Sir Bartholomew Moonwright"},
+{"category": "backlink", "difficulty": "medium", "question": "Where did Dr. Amelia Thornwick conduct her 1929 research expedition?", "answer": "Crysthaven Islands"},
+{"category": "backlink", "difficulty": "medium", "question": "Which organization did Dr. Yuki Sasamoto found in 2017?", "answer": "Emotional Weather Broadcasting Service"},
+{"category": "multi_hop", "difficulty": "hard", "question": "Who founded the culinary school whose building is covered in a moss endemic to the islands Dr. Amelia Thornwick visited in 1929?", "answer": "Professor Temporal Delicious"},
+{"category": "multi_hop", "difficulty": "hard", "question": "Where was the founder of the weather forecasting service that serves the Crysthaven Islands born?", "answer": "Shimizu-hama, Japan"},
+{"category": "multi_hop", "difficulty": "hard", "question": "Who discovered the ore mined by the company that sponsors the Festival of Floating Lanterns?", "answer": "Dr. Petra Rememberstone"},
+{"category": "multi_hop", "difficulty": "hard", "question": "Who founded the institute that was created to study the library which hosts the Festival of Floating Lanterns?", "answer": "Dr. Dimensional Impossiblius"},
+{"category": "multi_hop", "difficulty": "hard", "question": "Who first documented the valley from which the Lunar Cartography Expedition was launched?", "answer": "Captain Magnus Eriksson"},
+{"category": "conflicting", "difficulty": "medium", "question": "In what year was Magnetophoric Moss discovered?", "answer": "2021"},
+{"category": "conflicting", "difficulty": "medium", "question": "In what year was the Luminous Tree Frog discovered?", "answer": "2019"},
+{"category": "conflicting", "difficulty": "hard", "question": "In what year was the plant that the Gravity Surfing Championship adopted as its official symbol discovered?", "answer": "2020"},
+{"category": "unanswerable", "difficulty": "medium", "question": "Who designed the Crystal Palace in Prismheart?", "answer": "I don't know"},
+{"category": "unanswerable", "difficulty": "medium", "question": "What is the annual budget of the Festival of Floating Lanterns?", "answer": "I don't know"},
+{"category": "unanswerable", "difficulty": "medium", "question": "What was the name of the balloon used by the Lunar Cartography Expedition of 1689?", "answer": "I don't know"},
+{"category": "unanswerable", "difficulty": "medium", "question": "How many students are enrolled at the Culinary Time Travel Academy?", "answer": "I don't know"},
+{"category": "unanswerable", "difficulty": "hard", "question": "In what year was the leader of the Lunar Cartography Expedition of 1689 born?", "answer": "I don't know"}
+]
