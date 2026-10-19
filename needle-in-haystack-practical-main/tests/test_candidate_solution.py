@@ -1,5 +1,7 @@
+import io
 import os
 import sys
+from contextlib import redirect_stdout
 import tempfile
 import unittest
 
@@ -59,12 +61,22 @@ class AnswerFallbackTests(unittest.TestCase):
 
     def test_fallback_runs_only_when_react_loop_fails(self):
         candidate_solution.fallback_answer = lambda q, f: "from fallback"
-        react_loop.react_loop = lambda q, f: "I don't know"  # a refusal is final, not retried
+        react_loop.react_loop = lambda q, f, with_refs: ("I don't know", [])  # a refusal is final
         self.assertEqual(candidate_solution.answer("Q?", "x.xml"), "I don't know")
-        react_loop.react_loop = lambda q, f: 1 / 0
+        react_loop.react_loop = lambda q, f, with_refs: 1 / 0
         self.assertEqual(candidate_solution.answer("Q?", "x.xml"), "from fallback")
         candidate_solution.fallback_answer = lambda q, f: 1 / 0
         self.assertEqual(candidate_solution.answer("Q?", "x.xml"), "I don't know")  # never raises
+
+    def test_answer_prints_references_but_returns_clean_answer(self):
+        ref = {"page_id": 7183942, "xml_line": 4685499, "title": "Aethermist Valley", "text": "Skyfather's Breath"}
+        react_loop.react_loop = lambda q, f, with_refs: ("Skyfather's Breath", [ref])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(candidate_solution.answer("Q?", "x.xml"), "Skyfather's Breath")
+        self.assertEqual(out.getvalue(), "References for: Q?\n"
+                         "  [7183942:4685499] Aethermist Valley | Skyfather's Breath\n")
+        self.assertIn("(none)", candidate_solution.format_references("Q?", []))
 
 
 if __name__ == "__main__":
