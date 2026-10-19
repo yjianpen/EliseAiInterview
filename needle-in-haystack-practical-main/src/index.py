@@ -7,42 +7,51 @@ import threading
 import xml.etree.ElementTree as ET
 
 _NS = "{http://www.mediawiki.org/xml/export-0.11/}"
-_LINK = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|([^\[\]]*))?\]\]")
+_LINK = re.compile(r"\[\[([^\[\]|#\n]+)(?:#[^\[\]|\n]*)?(?:\|([^\[\]\n]*))?\]\]")
 _CACHE = {}
 _LOCK = threading.Lock()
 
 
 def clean_wikitext(text: str) -> str:
-    """Strip refs/comments/markup and flatten [[target|label]] links, keeping infobox fields."""
+    """Strip refs/comments/markup and flatten [[target|label]] links, keeping infobox fields.
+    Output line i comes from input line i (removed spans keep their newlines) so rows map to XML lines."""
     text = html.unescape(html.unescape(text or ""))  # dump text is often double-escaped
-    text = re.sub(r"<!--.*?-->|<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", text, flags=re.S)
+    text = re.sub(r"<!--.*?-->|<ref[^>]*/>|<ref[^>]*>.*?</ref>",
+                  lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
     text = _LINK.sub(lambda m: m.group(2) or m.group(1), text)
-    text = re.sub(r"'{2,}|<[^>]+>", "", text)
-    return "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    text = re.sub(r"'{2,}|<[^>\n]+>", "", text)
+    return "\n".join(line.strip() for line in text.split("\n"))
 
 
 def load_pages(file_path: str) -> dict:
     """Stream the dump into {"pages": title->clean text, "links": title->link targets,
-    "aliases": lowercased title/redirect -> canonical title}."""
-    pages, links, redirects = {}, {}, {}
+    "aliases": lowercased title/redirect -> canonical title, "docs": title->(page id, XML line of
+    the text's first row)}. Row i of pages[title] is XML line docs[title][1] + i (1-based)."""
+    pages, links, redirects, docs, text_line = {}, {}, {}, {}, 0
+    parser = ET.XMLPullParser(events=("start", "end"))
     with open(file_path, "rb") as fh:
-        for _, el in ET.iterparse(fh, events=("end",)):
-            if el.tag != _NS + "page":
-                continue
-            title = el.findtext(_NS + "title")
-            raw = el.findtext(f"{_NS}revision/{_NS}text") or ""
-            redirect = el.find(_NS + "redirect")
-            if redirect is not None:
-                redirects[title] = redirect.get("title")
-            else:
-                links[title] = sorted({m.group(1).strip() for m in _LINK.finditer(raw)})
-                pages[title] = clean_wikitext(raw)
-            el.clear()
+        for line_no, line in enumerate(fh, 1):  # fed line by line so we know where each <text> starts
+            parser.feed(line)
+            for event, el in parser.read_events():
+                if event == "start" or el.tag != _NS + "page":
+                    text_line = line_no if event == "start" and el.tag == _NS + "text" else text_line
+                    continue
+                title = el.findtext(_NS + "title")
+                raw = el.findtext(f"{_NS}revision/{_NS}text") or ""
+                redirect = el.find(_NS + "redirect")
+                if redirect is not None:
+                    redirects[title] = redirect.get("title")
+                else:
+                    links[title] = sorted({m.group(1).strip() for m in _LINK.finditer(raw)})
+                    pages[title] = clean_wikitext(raw)
+                    docs[title] = (int(el.findtext(_NS + "id") or -1), text_line)
+                el.clear()
+        parser.close()
     aliases = {t.lower(): t for t in pages}
     for src, dst in redirects.items():
         if dst in pages:
             aliases.setdefault(src.lower(), dst)
-    return {"pages": pages, "links": links, "aliases": aliases}
+    return {"pages": pages, "links": links, "aliases": aliases, "docs": docs}
 
 
 def get_index(file_path: str) -> dict:
@@ -50,7 +59,7 @@ def get_index(file_path: str) -> dict:
     with _LOCK:
         if file_path in _CACHE:
             return _CACHE[file_path]
-        cache_path = file_path + ".idx.pkl"
+        cache_path = file_path + ".v2.idx.pkl"  # v2: adds "docs" and line-preserving text
         fresh = os.path.exists(cache_path) and os.path.getmtime(cache_path) >= os.path.getmtime(file_path)
         if fresh:
             with open(cache_path, "rb") as f:
